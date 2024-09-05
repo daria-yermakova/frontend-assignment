@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from "react";
 import Item, {FileType} from "../models/Item";
-import {SimpleTreeView, TreeItem} from "@mui/x-tree-view";
+import {SimpleTreeView, TreeItem, useTreeViewApiRef} from "@mui/x-tree-view";
 import ImageIcon from "@mui/icons-material/Image";
 import ArticleIcon from "@mui/icons-material/Article";
 import FolderRounded from "@mui/icons-material/FolderRounded";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import {ap} from "vitest/dist/reporters-5f784f42";
 
 const getIconFromFileType = (fileType: FileType) => {
     switch (fileType) {
@@ -34,20 +35,6 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
         }, [fileArray]);
 
 
-    // const findItem = useCallback((id:string) => {
-    //     fileArray.map(elem => {
-    //         if(elem.id === id) {
-    //             console.log(elem);
-    //             return elem;
-    //         } else if (elem.children !== null && typeof elem.children !== 'undefined' && elem.id !== id) {
-    //             elem.children.find((child: Item) => {
-    //                 if(child.id === id){
-    //                     return child;
-    //                 }
-    //             })
-    //         }
-    //     })
-    // }, []);
     const findItem = useCallback((listItems: Item[], id: string): Item | undefined => {
         let finded = undefined;  listItems.some(item => {
             if (item.id === id) {
@@ -62,7 +49,6 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
             }  });
         return finded;
     }, [])
-
 
     const [sidebarWidth, setSidebarWidth] = useState(300); // Initial width of 300px
     const [isResizing, setIsResizing] = useState(false); // To track if resizing is in progress
@@ -107,6 +93,21 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
         }
     }
 
+    const handleClick = useCallback((e: React.SyntheticEvent, item: Item) => {
+        if(apiRef.current) {
+            apiRef.current.setItemExpansion(
+                e,
+                item.id,
+                true
+            );
+            apiRef.current.focusItem(
+                e,
+                item.id
+            );
+            setSelectedItem(item);
+        }
+    }, []);
+
     const buildItemInfo = (item: Item) => {
         console.log(item, typeof item)
         if(item) {
@@ -123,9 +124,11 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
                     const itemsArray: any[] = [];
                     for(let i= 0; i < item.children.length; i++) {
                         itemsArray.push(
-                            <Box sx={{ textAlign: "center", padding: "5px"}}
-                             onClick={() => {
-                                if(item.children && item.children[i]) {setSelectedItem(item.children[i])}
+                            <Box sx={{ textAlign: "center", padding: "5px", flexBasis: '18%', paddingY: 2, minWidth: '136px'}}
+                             onClick={(e) => {
+                                if(item.children && item.children[i]) {
+                                    handleClick(e, item.children[i])
+                                }
                             }}>
                                 {getIconFromFileType(item.children[i].type)}
                                 <Typography>{item.children[i].name}</Typography>
@@ -133,7 +136,7 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
                         )
                     }
                     return (
-                        <Box sx={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))"}}>
+                        <Box sx={{display: "flex", flexWrap: 'wrap'}}>
                             {!itemsArray.length ?
                                 <Typography sx={{ padding:"10px"}} fontFamily={'inherit'} variant="h6">No items</Typography>
                                 : itemsArray}
@@ -144,22 +147,24 @@ export const Main = ({fileArray} : { fileArray : Item []}) => {
         }
     }
 
+    const apiRef = useTreeViewApiRef();
+
     return (
         <Box display={"flex"} overflow={"hidden"} height={"100%"} flexGrow={1}>
             <Box minWidth={300}
                  width={`${sidebarWidth}px`}
-                 px={3} py={4}
+                 pl={3} py={4}
                  overflow={"auto"}
                  sx={{position: "relative", borderRight: "1px solid #000"}}
                  onMouseDown={startResizing}
             >
-                <SimpleTreeView onItemClick={onItemClick}>
+                <SimpleTreeView onItemClick={onItemClick} apiRef={apiRef}>
                     {fileArray.map((item : Item) =>
                             buildTreeItem(item)
                         )}
                 </SimpleTreeView>
             </Box>
-            <Box sx={{ flexGrow: 1, padding: '20px'}}>
+            <Box sx={{ flexGrow: 1}}>
                 {selectedItem ? buildItemInfo(selectedItem) :
                     <Box sx={{ padding:"10px"}}>
                         <Typography fontFamily={'inherit'} variant="h6">No information</Typography>
